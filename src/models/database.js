@@ -1,216 +1,103 @@
-const { Sequelize, DataTypes } = require('sequelize');
-const path = require('path');
+const fileDatabase = require('./fileDatabase');
 const { logger } = require('../utils/logger');
 
-// Database configuration
-const sequelize = new Sequelize({
-  dialect: 'sqlite',
-  storage: path.join(__dirname, '../../release_chatbot.db'),
-  logging: (msg) => logger.debug(msg),
-  define: {
-    timestamps: true,
-    underscored: true
+// For backward compatibility, we'll create a Sequelize-like interface
+// that uses the file database underneath
+
+// Mock Sequelize models for backward compatibility
+const Release = {
+  create: (data) => fileDatabase.createRelease(data),
+  findByPk: (id) => fileDatabase.findReleaseById(id),
+  findOne: (options) => {
+    if (options.where && options.where.version) {
+      return fileDatabase.findReleaseByVersion(options.where.version);
+    }
+    return null;
+  },
+  findAll: (options) => {
+    if (options && options.where && options.where.status) {
+      return fileDatabase.findReleasesByStatus(options.where.status);
+    }
+    return fileDatabase.findAllReleases();
+  },
+  update: (data, options) => {
+    if (options && options.where && options.where.id) {
+      return fileDatabase.updateRelease(options.where.id, data);
+    }
+    throw new Error('Update requires where clause with id');
+  },
+  destroy: (options) => {
+    if (options && options.where && options.where.id) {
+      return fileDatabase.deleteRelease(options.where.id);
+    }
+    throw new Error('Delete requires where clause with id');
   }
-});
+};
 
-// Define models directly to avoid circular dependencies
-const Release = sequelize.define('Release', {
-  id: {
-    type: DataTypes.UUID,
-    defaultValue: DataTypes.UUIDV4,
-    primaryKey: true
+const Conversation = {
+  create: (data) => fileDatabase.createConversation(data),
+  findByPk: (id) => fileDatabase.findConversationById(id),
+  findOne: (options) => {
+    if (options && options.where && options.where.sessionId) {
+      return fileDatabase.findConversationBySessionId(options.where.sessionId);
+    }
+    return null;
   },
-  version: {
-    type: DataTypes.STRING,
-    allowNull: false,
-    unique: true
-  },
-  status: {
-    type: DataTypes.ENUM('pending', 'in_progress', 'completed', 'failed', 'cancelled'),
-    defaultValue: 'pending'
-  },
-  environment: {
-    type: DataTypes.ENUM('development', 'staging', 'production'),
-    defaultValue: 'staging'
-  },
-  applications: {
-    type: DataTypes.JSON,
-    allowNull: false,
-    defaultValue: []
-  },
-  releaseBranch: {
-    type: DataTypes.STRING,
-    allowNull: true
-  },
-  releaseNotes: {
-    type: DataTypes.TEXT,
-    allowNull: true
-  },
-  startedAt: {
-    type: DataTypes.DATE,
-    allowNull: true
-  },
-  completedAt: {
-    type: DataTypes.DATE,
-    allowNull: true
-  },
-  conversationId: {
-    type: DataTypes.UUID,
-    allowNull: true
-  },
-  metadata: {
-    type: DataTypes.JSON,
-    defaultValue: {}
+  findAll: () => fileDatabase.findAllConversations(),
+  update: (data, options) => {
+    if (options && options.where && options.where.id) {
+      return fileDatabase.updateConversation(options.where.id, data);
+    }
+    throw new Error('Update requires where clause with id');
   }
-}, {
-  tableName: 'releases',
-  indexes: [
-    { fields: ['version'] },
-    { fields: ['status'] },
-    { fields: ['environment'] }
-  ]
-});
+};
 
-const Conversation = sequelize.define('Conversation', {
-  id: {
-    type: DataTypes.UUID,
-    defaultValue: DataTypes.UUIDV4,
-    primaryKey: true
+const ReleaseStep = {
+  create: (data) => fileDatabase.createReleaseStep(data),
+  findAll: (options) => {
+    if (options && options.where && options.where.releaseId) {
+      return fileDatabase.findReleaseStepsByReleaseId(options.where.releaseId);
+    }
+    return [];
   },
-  sessionId: {
-    type: DataTypes.STRING,
-    allowNull: false,
-    unique: true
-  },
-  isActive: {
-    type: DataTypes.BOOLEAN,
-    defaultValue: true
-  },
-  lastActivityAt: {
-    type: DataTypes.DATE,
-    defaultValue: DataTypes.NOW
+  update: (data, options) => {
+    if (options && options.where && options.where.id) {
+      return fileDatabase.updateReleaseStep(options.where.id, data);
+    }
+    throw new Error('Update requires where clause with id');
   }
-}, {
-  tableName: 'conversations',
-  indexes: [
-    { fields: ['sessionId'] },
-    { fields: ['isActive'] }
-  ]
-});
+};
 
-const ReleaseStep = sequelize.define('ReleaseStep', {
-  id: {
-    type: DataTypes.UUID,
-    defaultValue: DataTypes.UUIDV4,
-    primaryKey: true
-  },
-  releaseId: {
-    type: DataTypes.UUID,
-    allowNull: false
-  },
-  stepType: {
-    type: DataTypes.ENUM(
-      'create_release_branch',
-      'generate_release_notes',
-      'build_infrastructure',
-      'build_services',
-      'deploy_services',
-      'verify_deployment'
-    ),
-    allowNull: false
-  },
-  status: {
-    type: DataTypes.ENUM('pending', 'in_progress', 'completed', 'failed', 'skipped'),
-    defaultValue: 'pending'
-  },
-  startedAt: {
-    type: DataTypes.DATE,
-    allowNull: true
-  },
-  completedAt: {
-    type: DataTypes.DATE,
-    allowNull: true
-  },
-  result: {
-    type: DataTypes.JSON,
-    defaultValue: {}
-  },
-  order: {
-    type: DataTypes.INTEGER,
-    allowNull: false
+const ReleaseLog = {
+  create: (data) => fileDatabase.createReleaseLog(data),
+  findAll: (options) => {
+    if (options && options.where && options.where.releaseId) {
+      return fileDatabase.findReleaseLogsByReleaseId(options.where.releaseId);
+    }
+    if (options && options.where && options.where.stepId) {
+      return fileDatabase.findReleaseLogsByStepId(options.where.stepId);
+    }
+    return [];
   }
-}, {
-  tableName: 'release_steps',
-  indexes: [
-    { fields: ['releaseId'] },
-    { fields: ['stepType'] },
-    { fields: ['status'] }
-  ]
-});
+};
 
-const ReleaseLog = sequelize.define('ReleaseLog', {
-  id: {
-    type: DataTypes.UUID,
-    defaultValue: DataTypes.UUIDV4,
-    primaryKey: true
+// Mock sequelize object for backward compatibility
+const sequelize = {
+  authenticate: async () => {
+    logger.info('File database connection established successfully');
+    return true;
   },
-  releaseId: {
-    type: DataTypes.UUID,
-    allowNull: false
-  },
-  stepId: {
-    type: DataTypes.UUID,
-    allowNull: true
-  },
-  level: {
-    type: DataTypes.ENUM('info', 'warn', 'error', 'debug'),
-    defaultValue: 'info'
-  },
-  message: {
-    type: DataTypes.TEXT,
-    allowNull: false
-  },
-  timestamp: {
-    type: DataTypes.DATE,
-    defaultValue: DataTypes.NOW
-  },
-  metadata: {
-    type: DataTypes.JSON,
-    defaultValue: {}
+  sync: async (options) => {
+    logger.info('File database models synchronized');
+    return true;
   }
-}, {
-  tableName: 'release_logs',
-  indexes: [
-    { fields: ['releaseId'] },
-    { fields: ['stepId'] },
-    { fields: ['level'] },
-    { fields: ['timestamp'] }
-  ]
-});
-
-// Define associations
-Release.hasMany(ReleaseStep, { foreignKey: 'releaseId', as: 'steps' });
-ReleaseStep.belongsTo(Release, { foreignKey: 'releaseId' });
-
-Release.hasMany(ReleaseLog, { foreignKey: 'releaseId', as: 'logs' });
-ReleaseLog.belongsTo(Release, { foreignKey: 'releaseId' });
-
-ReleaseStep.hasMany(ReleaseLog, { foreignKey: 'stepId', as: 'logs' });
-ReleaseLog.belongsTo(ReleaseStep, { foreignKey: 'stepId' });
-
-Conversation.hasMany(Release, { foreignKey: 'conversationId', as: 'releases' });
-Release.belongsTo(Conversation, { foreignKey: 'conversationId' });
+};
 
 // Initialize database
 async function initializeDatabase() {
   try {
-    await sequelize.authenticate();
-    logger.info('Database connection established successfully');
-    
-    // Sync all models
-    await sequelize.sync({ force: true });
-    logger.info('Database models synchronized');
-    
+    await fileDatabase.initialize();
+    logger.info('File database initialized successfully');
     return sequelize;
   } catch (error) {
     logger.error('Database initialization failed:', error);
@@ -224,5 +111,6 @@ module.exports = {
   Release,
   Conversation,
   ReleaseStep,
-  ReleaseLog
+  ReleaseLog,
+  fileDatabase // Export the actual file database for direct access
 };

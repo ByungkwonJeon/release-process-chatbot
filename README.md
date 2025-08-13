@@ -38,7 +38,7 @@ A comprehensive AI-powered chatbot for automating release processes with Jira in
 ### **Technology Stack**
 - **Backend**: Node.js with Express.js
 - **Frontend**: React.js with Tailwind CSS
-- **Database**: SQLite (development) / PostgreSQL (production)
+- **Database**: File-based JSON storage (no external database required)
 - **Real-time Communication**: Socket.IO
 - **AI Integration**: Model Context Protocol (MCP)
 - **Cloud Services**: AWS SDK, Terraform, Spinnaker
@@ -106,7 +106,8 @@ JULES_USERNAME=your-username
 JULES_SSH_KEY_PATH=/path/to/ssh/key
 
 # Database Configuration
-DATABASE_URL=sqlite:./release_chatbot.db
+# Using file-based JSON storage (no external database required)
+# Data will be stored in ./data/ directory
 
 # Server Configuration
 PORT=3000
