@@ -1,0 +1,59 @@
+{
+  "name": "release-process-chatbot",
+  "version": "1.0.0",
+  "description": "Chatbot for managing release process with Bitbucket, Jira, Terraform, and Spinnaker integration using Model Context Protocol",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "client": "cd client && npm start",
+    "build": "cd client && npm run build",
+    "install-client": "cd client && npm install",
+    "heroku-postbuild": "npm run install-client && npm run build",
+    "setup": "npm install && npm run install-client",
+    "db:init": "node -e \"require('./src/models/database').initializeDatabase().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); })\"",
+    "test": "echo \"No tests specified\" && exit 0",
+    "validate": "npm run db:init",
+    "mcp:start": "node src/mcp/server.js",
+    "mcp:dev": "nodemon src/mcp/server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.7.2",
+    "axios": "^1.5.0",
+    "dotenv": "^16.3.1",
+    "cors": "^2.8.5",
+    "helmet": "^7.0.0",
+    "morgan": "^1.10.0",
+    "winston": "^3.10.0",
+    "node-cron": "^3.0.2",
+    "uuid": "^9.0.0",
+    "sqlite3": "^5.1.6",
+    "sequelize": "^6.32.1",
+    "jsonwebtoken": "^9.0.2",
+    "bcryptjs": "^2.4.3",
+    "multer": "^1.4.5-lts.1",
+    "yaml": "^2.3.1",
+    "ssh2": "^1.14.0",
+    "aws-sdk": "^2.1450.0",
+    "simple-git": "^3.19.1",
+    "@modelcontextprotocol/sdk": "^1.17.2",
+    "ws": "^8.14.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "keywords": [
+    "chatbot",
+    "release",
+    "devops",
+    "bitbucket",
+    "jira",
+    "terraform",
+    "spinnaker",
+    "mcp",
+    "model-context-protocol"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
+}

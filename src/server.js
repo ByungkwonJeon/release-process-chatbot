@@ -1,0 +1,111 @@
+const express = require('express');
+const http = require('http');
+const socketIo = require('socket.io');
+const cors = require('cors');
+const helmet = require('helmet');
+const morgan = require('morgan');
+const path = require('path');
+require('dotenv').config();
+
+const { logger } = require('./utils/logger');
+const { initializeDatabase } = require('./models/database');
+const chatRoutes = require('./routes/chat');
+const releaseRoutes = require('./routes/releases');
+const { setupSocketHandlers } = require('./utils/socketHandlers');
+const mcpClient = require('./services/mcpClient');
+
+const app = express();
+const server = http.createServer(app);
+const io = socketIo(server, {
+  cors: {
+    origin: process.env.CLIENT_URL || "http://localhost:3000",
+    methods: ["GET", "POST"]
+  }
+});
+
+const PORT = process.env.PORT || 3001;
+
+// Middleware
+app.use(helmet());
+app.use(cors({
+  origin: process.env.CLIENT_URL || "http://localhost:3000",
+  credentials: true
+}));
+app.use(morgan('combined', { stream: { write: message => logger.info(message.trim()) } }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true }));
+
+// Static files
+app.use(express.static(path.join(__dirname, '../client/build')));
+
+// API Routes
+app.use('/api/chat', chatRoutes);
+app.use('/api/releases', releaseRoutes);
+
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    version: '1.0.0'
+  });
+});
+
+// Serve React app for all other routes
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../client/build/index.html'));
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  logger.error('Unhandled error:', err);
+  res.status(500).json({ 
+    error: 'Internal server error',
+    message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
+  });
+});
+
+// Initialize database and start server
+async function startServer() {
+  try {
+    await initializeDatabase();
+    logger.info('Database initialized successfully');
+    
+    // Connect to MCP server
+    try {
+      await mcpClient.connect(process.env.MCP_SERVER_URL || 'ws://localhost:3002');
+      logger.info('MCP client connected successfully');
+    } catch (error) {
+      logger.warn('Failed to connect to MCP server, continuing without MCP integration:', error.message);
+    }
+    
+    // Setup Socket.IO handlers
+    setupSocketHandlers(io);
+    
+    server.listen(PORT, () => {
+      logger.info(`Server running on port ${PORT}`);
+      logger.info(`Environment: ${process.env.NODE_ENV}`);
+      logger.info(`MCP Integration: ${mcpClient.isConnected() ? 'Connected' : 'Not connected'}`);
+    });
+  } catch (error) {
+    logger.error('Failed to start server:', error);
+    process.exit(1);
+  }
+}
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  logger.info('SIGTERM received, shutting down gracefully');
+  server.close(() => {
+    logger.info('Process terminated');
+  });
+});
+
+process.on('SIGINT', () => {
+  logger.info('SIGINT received, shutting down gracefully');
+  server.close(() => {
+    logger.info('Process terminated');
+  });
+});
+
+startServer();
