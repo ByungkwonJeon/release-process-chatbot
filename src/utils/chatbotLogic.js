@@ -111,9 +111,11 @@ class ChatbotLogic {
         });
       }
 
-      // Update last activity
-      conversation.lastActivityAt = new Date();
-      await conversation.save();
+      // Update last activity using file database
+      const { fileDatabase } = require('../models/database');
+      conversation = await fileDatabase.updateConversation(conversation.id, {
+        lastActivityAt: new Date().toISOString()
+      });
 
       // Process the message
       const response = await this.analyzeMessage(message, conversation);
@@ -321,8 +323,10 @@ class ChatbotLogic {
       );
 
       // Associate release with conversation
-      release.conversationId = conversation.id;
-      await release.save();
+      const { fileDatabase } = require('../models/database');
+      const updatedRelease = await fileDatabase.updateRelease(release.id, {
+        conversationId: conversation.id
+      });
 
       return {
         type: 'release_started',
@@ -667,8 +671,10 @@ class ChatbotLogic {
       );
 
       // Associate release with conversation
-      release.conversationId = conversation.id;
-      await release.save();
+      const { fileDatabase } = require('../models/database');
+      const updatedRelease = await fileDatabase.updateRelease(release.id, {
+        conversationId: conversation.id
+      });
 
       return {
         type: 'release_started',
@@ -1561,8 +1567,10 @@ class ChatbotLogic {
       );
       
       // Associate release with conversation
-      release.conversationId = conversation.id;
-      await release.save();
+      const { fileDatabase } = require('../models/database');
+      const updatedRelease = await fileDatabase.updateRelease(release.id, {
+        conversationId: conversation.id
+      });
       
       let message = `🚀 **Multi-Project Release Started!**\n\n`;
       message += `**Version:** ${version}\n`;
