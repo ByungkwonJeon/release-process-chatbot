@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
+    "dev:full": "concurrently \"npm run dev\" \"npm run client\"",
     "client": "cd client && npm start",
     "build": "cd client && npm run build",
     "install-client": "cd client && npm install",
@@ -20,28 +21,28 @@
     "mcp:dev": "nodemon src/mcp/server.js"
   },
   "dependencies": {
-    "express": "^4.21.2",
-    "socket.io": "^4.7.2",
-    "axios": "^1.5.0",
-    "dotenv": "^17.2.1",
-    "cors": "^2.8.5",
-    "helmet": "^7.2.0",
-    "morgan": "^1.10.0",
-    "winston": "^3.10.0",
-    "node-cron": "^4.2.1",
-    "uuid": "^11.1.0",
-    "jsonwebtoken": "^9.0.2",
-    "bcryptjs": "^3.0.2",
-    "multer": "^2.0.2",
-    "yaml": "^2.3.1",
-    "ssh2": "^1.14.0",
     "aws-sdk": "^2.1450.0",
+    "axios": "^1.5.0",
+    "bcryptjs": "^3.0.2",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.1",
+    "express": "^4.21.2",
+    "helmet": "^7.2.0",
+    "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.0",
+    "multer": "^2.0.2",
+    "node-cron": "^4.2.1",
+    "qs": "^6.14.0",
     "simple-git": "^3.19.1",
-
+    "socket.io": "^4.7.2",
+    "ssh2": "^1.14.0",
+    "uuid": "^11.1.0",
+    "winston": "^3.10.0",
     "ws": "^8.14.2",
-    "qs": "^6.14.0"
+    "yaml": "^2.3.1"
   },
   "devDependencies": {
+    "concurrently": "^9.2.0",
     "nodemon": "^3.0.1"
   },
   "keywords": [
