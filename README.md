@@ -12,6 +12,7 @@ A comprehensive AI-powered chatbot for automating release processes with Jira in
 - Verify deployments on AWS
 
 ### **Jira Integration**
+- **OAuth2 Authentication**: Secure authentication using JPMorgan Chase ADFS
 - Enhanced Jira tool with custom fields support
 - Generate release notes with Epic, Sprint, Approver, and Team information
 - Create Jira stories through natural language commands
@@ -78,7 +79,12 @@ Create a `.env` file with your configuration:
 # Jira Configuration
 JIRA_HOST=https://your-domain.atlassian.net
 JIRA_EMAIL=your-email@company.com
-JIRA_API_TOKEN=your-api-token
+JIRA_API_TOKEN=your-api-token  # Optional for OAuth2
+
+# Jira OAuth2 Configuration (for JPMorgan Chase ADFS)
+JIRA_ADFS_URL=https://idaq2.jpmorganchase.com/adfs/oauth2/token
+JIRA_CLIENT_ID=PC-111661-SID-277611-PROD
+JIRA_RESOURCE=JPMC:URI:RS-25188-87400-Jira0authAPI-PROD
 
 # Bitbucket Configuration
 BITBUCKET_HOST=https://api.bitbucket.org
@@ -107,12 +113,29 @@ PORT=3000
 NODE_ENV=development
 ```
 
-### 4. Initialize Database
+### 4. Jira OAuth2 Setup (Optional)
+
+If you're using JPMorgan Chase ADFS authentication, set up OAuth2:
+
+1. **Create SID file** in your home directory:
+```bash
+echo "your-password" > ~/.sid
+chmod 600 ~/.sid
+```
+
+2. **Test OAuth2 authentication**:
+```bash
+npm run test:jira
+```
+
+For detailed OAuth2 setup instructions, see [JIRA_OAUTH2_SETUP.md](JIRA_OAUTH2_SETUP.md).
+
+### 5. Initialize Database
 ```bash
 npm run db:init
 ```
 
-### 5. Start the Services
+### 6. Start the Services
 
 #### Start MCP Server
 ```bash
@@ -129,7 +152,7 @@ npm start
 npm run dev
 ```
 
-### 6. Access the Application
+### 7. Access the Application
 - **Web Interface**: http://localhost:3000
 - **API Documentation**: http://localhost:3000/api/docs
 - **WebSocket**: ws://localhost:3000

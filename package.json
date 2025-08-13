@@ -13,6 +13,7 @@
     "setup": "npm install && npm run install-client",
     "db:init": "node -e \"require('./src/models/database').initializeDatabase().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); })\"",
     "test": "echo \"No tests specified\" && exit 0",
+    "test:jira": "node test-jira-oauth.js",
     "validate": "npm run db:init",
     "mcp:start": "node src/mcp/server.js",
     "mcp:dev": "nodemon src/mcp/server.js"
@@ -38,7 +39,8 @@
     "aws-sdk": "^2.1450.0",
     "simple-git": "^3.19.1",
     "@modelcontextprotocol/sdk": "^1.17.2",
-    "ws": "^8.14.2"
+    "ws": "^8.14.2",
+    "qs": "^6.11.2"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
