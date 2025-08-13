@@ -325,9 +325,9 @@ node demo-copilot-integration.js
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-## 📄 License
+## 📄 Internal Use Only
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is for internal/personal use only and is not intended for public distribution.
 
 ## 🆘 Support
 

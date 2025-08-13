@@ -57,6 +57,6 @@
     "mcp",
     "model-context-protocol"
   ],
-  "author": "Your Name",
-  "license": "MIT"
+  "author": "Byungkwon Jeon",
+  "private": true
 }
