@@ -1,4 +1,4 @@
-const { Server } = require('@modelcontextprotocol/sdk');
+const { Server } = require('@modelcontextprotocol/sdk/server');
 const { logger } = require('../utils/logger');
 
 // Import MCP tools

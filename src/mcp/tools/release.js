@@ -1,4 +1,4 @@
-const { Tool } = require('@modelcontextprotocol/sdk');
+const { Tool } = require('@modelcontextprotocol/sdk/server/tools');
 const { logger } = require('../../utils/logger');
 const { Release, ReleaseStep, ReleaseLog } = require('../../models/database');
 

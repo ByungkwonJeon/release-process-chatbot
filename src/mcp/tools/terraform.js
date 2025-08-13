@@ -1,4 +1,4 @@
-const { Tool } = require('@modelcontextprotocol/sdk');
+const { Tool } = require('@modelcontextprotocol/sdk/server/tools');
 const { Client } = require('ssh2');
 const fs = require('fs');
 const { logger } = require('../../utils/logger');

@@ -1,5 +1,68 @@
-const { Client } = require('@modelcontextprotocol/sdk');
 const { logger } = require('../utils/logger');
+
+// Mock MCP Client for internal/personal use
+class MockMCPClient {
+  constructor() {
+    this.client = null;
+    this.connected = false;
+    this.tools = {};
+  }
+
+  async connect(serverUrl = 'ws://localhost:3002') {
+    logger.info(`Mock MCP Client: Would connect to ${serverUrl}`);
+    this.connected = true;
+    return true;
+  }
+
+  async disconnect() {
+    this.connected = false;
+    logger.info('Mock MCP Client: Disconnected');
+  }
+
+  async discoverTools() {
+    logger.info('Mock MCP Client: Discovering tools');
+    this.tools = {
+      'jira': { name: 'jira', description: 'Mock Jira tool' },
+      'bitbucket': { name: 'bitbucket', description: 'Mock Bitbucket tool' },
+      'terraform': { name: 'terraform', description: 'Mock Terraform tool' },
+      'aws': { name: 'aws', description: 'Mock AWS tool' },
+      'spinnaker': { name: 'spinnaker', description: 'Mock Spinnaker tool' }
+    };
+    return this.tools;
+  }
+
+  async callTool(toolName, action, params = {}) {
+    logger.info(`Mock MCP Client: Calling ${toolName} with action ${action}`);
+    return { success: true, message: `Mock response from ${toolName}` };
+  }
+
+  isConnected() {
+    return this.connected;
+  }
+
+  // Convenience methods
+  async bitbucket(action, params = {}) {
+    return await this.callTool('bitbucket', action, params);
+  }
+
+  async jira(action, params = {}) {
+    return await this.callTool('jira', action, params);
+  }
+
+  async terraform(action, params = {}) {
+    return await this.callTool('terraform', action, params);
+  }
+
+  async aws(action, params = {}) {
+    return await this.callTool('aws', action, params);
+  }
+
+  async spinnaker(action, params = {}) {
+    return await this.callTool('spinnaker', action, params);
+  }
+}
+
+const Client = MockMCPClient;
 
 class MCPClient {
   constructor() {

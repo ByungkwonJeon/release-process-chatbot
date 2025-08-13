@@ -1,4 +1,4 @@
-const { Tool } = require('@modelcontextprotocol/sdk');
+const { Tool } = require('@modelcontextprotocol/sdk/server/tools');
 const AWS = require('aws-sdk');
 const { logger } = require('../../utils/logger');
 
