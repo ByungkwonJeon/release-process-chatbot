@@ -1,101 +1,252 @@
-const { Server } = require('@modelcontextprotocol/sdk/dist/cjs/server');
+const { Server } = require('@modelcontextprotocol/sdk/server');
+const { StdioServerTransport } = require('@modelcontextprotocol/sdk/server/stdio');
 const { logger } = require('../utils/logger');
 
-// Import MCP tools
-const BitbucketTool = require('./tools/bitbucket');
-const JiraTool = require('./tools/jira');
-const EnhancedJiraTool = require('./tools/enhancedJira');
-const TerraformTool = require('./tools/terraform');
-const SpinnakerTool = require('./tools/spinnaker');
-const AWSTool = require('./tools/aws');
-const ReleaseTool = require('./tools/release');
+// Import our OAuth2 Jira service
+const jiraOAuth2Service = require('../services/jiraOAuth2');
 
-class MCPServer {
-  constructor() {
-    this.server = new Server({
-      name: 'release-process-chatbot',
-      version: '1.0.0'
-    });
+// Create MCP server
+const server = new Server({
+  name: 'release-process-chatbot',
+  version: '1.0.0'
+});
 
-    this.tools = {
-      bitbucket: new BitbucketTool(),
-      jira: new JiraTool(),
-      enhancedJira: new EnhancedJiraTool(),
-      terraform: new TerraformTool(),
-      spinnaker: new SpinnakerTool(),
-      aws: new AWSTool(),
-      release: new ReleaseTool()
+// Register tool request handlers
+server.setRequestHandler('tools/list', async () => {
+  return {
+    tools: [
+      {
+        name: 'getSprintStories',
+        description: 'Get all stories from a Jira sprint',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            sprintId: {
+              type: 'string',
+              description: 'The sprint ID'
+            }
+          },
+          required: ['sprintId']
+        }
+      },
+      {
+        name: 'getActiveSprints',
+        description: 'Get all active sprints from a Jira board',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            boardId: {
+              type: 'string',
+              description: 'The board ID (optional)'
+            }
+          }
+        }
+      },
+      {
+        name: 'generateReleaseNotes',
+        description: 'Generate release notes from a sprint',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            sprintId: {
+              type: 'string',
+              description: 'The sprint ID'
+            },
+            version: {
+              type: 'string',
+              description: 'The version number'
+            }
+          },
+          required: ['sprintId', 'version']
+        }
+      },
+      {
+        name: 'getSprintInfo',
+        description: 'Get information about a specific sprint',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            sprintId: {
+              type: 'string',
+              description: 'The sprint ID'
+            }
+          },
+          required: ['sprintId']
+        }
+      },
+      {
+        name: 'getProjects',
+        description: 'Get all Jira projects',
+        inputSchema: {
+          type: 'object',
+          properties: {}
+        }
+      }
+    ]
+  };
+});
+
+server.setRequestHandler('tools/call', async (request) => {
+  const { name, arguments: args } = request.params;
+  
+  try {
+    logger.info(`MCP Tool called: ${name} with args:`, args);
+
+    switch (name) {
+  async listTools() {
+    return {
+      tools: [
+        {
+          name: 'getSprintStories',
+          description: 'Get all stories from a Jira sprint',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              sprintId: {
+                type: 'string',
+                description: 'The sprint ID'
+              }
+            },
+            required: ['sprintId']
+          }
+        },
+        {
+          name: 'getActiveSprints',
+          description: 'Get all active sprints from a Jira board',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              boardId: {
+                type: 'string',
+                description: 'The board ID (optional)'
+              }
+            }
+          }
+        },
+        {
+          name: 'generateReleaseNotes',
+          description: 'Generate release notes from a sprint',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              sprintId: {
+                type: 'string',
+                description: 'The sprint ID'
+              },
+              version: {
+                type: 'string',
+                description: 'The version number'
+              }
+            },
+            required: ['sprintId', 'version']
+          }
+        },
+        {
+          name: 'getSprintInfo',
+          description: 'Get information about a specific sprint',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              sprintId: {
+                type: 'string',
+                description: 'The sprint ID'
+              }
+            },
+            required: ['sprintId']
+          }
+        },
+        {
+          name: 'getProjects',
+          description: 'Get all Jira projects',
+          inputSchema: {
+            type: 'object',
+            properties: {}
+          }
+        }
+      ]
     };
+  },
 
-    this.setupTools();
-  }
-
-  setupTools() {
-    // Register all tools with the MCP server
-    Object.values(this.tools).forEach(tool => {
-      this.server.addTool(tool);
-    });
-
-    logger.info('MCP tools registered successfully');
-  }
-
-  async start(port = 3002) {
+  async callTool({ name, arguments: args }) {
     try {
-      await this.server.listen(port);
-      logger.info(`MCP server started on port ${port}`);
-      
-      // Log available tools
-      const toolNames = Object.keys(this.tools);
-      logger.info(`Available MCP tools: ${toolNames.join(', ')}`);
-      
-      return this.server;
+      logger.info(`MCP Tool called: ${name} with args:`, args);
+
+      switch (name) {
+        case 'getSprintStories':
+          const stories = await jiraOAuth2Service.getSprintStories(args.sprintId);
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify(stories, null, 2)
+              }
+            ]
+          };
+
+        case 'getActiveSprints':
+          const sprints = await jiraOAuth2Service.getActiveSprints(args.boardId);
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify(sprints, null, 2)
+              }
+            ]
+          };
+
+        case 'generateReleaseNotes':
+          const releaseNotes = await jiraOAuth2Service.generateReleaseNotes(args.sprintId, args.version);
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify(releaseNotes, null, 2)
+              }
+            ]
+          };
+
+        case 'getSprintInfo':
+          const sprintInfo = await jiraOAuth2Service.getSprintInfo(args.sprintId);
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify(sprintInfo, null, 2)
+              }
+            ]
+          };
+
+        case 'getProjects':
+          const projects = await jiraOAuth2Service.getProjects();
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify(projects, null, 2)
+              }
+            ]
+          };
+
+        default:
+          throw new Error(`Unknown tool: ${name}`);
+      }
     } catch (error) {
-      logger.error('Failed to start MCP server:', error);
+      logger.error(`MCP Tool error for ${name}:`, error.message);
       throw error;
     }
   }
-
-  async stop() {
-    try {
-      await this.server.close();
-      logger.info('MCP server stopped');
-    } catch (error) {
-      logger.error('Error stopping MCP server:', error);
-    }
-  }
-
-  getTool(name) {
-    return this.tools[name];
-  }
-
-  getAllTools() {
-    return this.tools;
-  }
-}
-
-// Create and export singleton instance
-const mcpServer = new MCPServer();
-
-// Handle graceful shutdown
-process.on('SIGINT', async () => {
-  logger.info('Shutting down MCP server...');
-  await mcpServer.stop();
-  process.exit(0);
 });
 
-process.on('SIGTERM', async () => {
-  logger.info('Shutting down MCP server...');
-  await mcpServer.stop();
-  process.exit(0);
-});
-
-module.exports = mcpServer;
-
-// Start server if run directly
-if (require.main === module) {
-  const port = process.env.MCP_PORT || 3002;
-  mcpServer.start(port).catch(error => {
+// Start the server
+async function startServer() {
+  try {
+    const transport = new StdioServerTransport();
+    await server.connect(transport);
+    logger.info('MCP Server started successfully');
+  } catch (error) {
     logger.error('Failed to start MCP server:', error);
     process.exit(1);
-  });
+  }
 }
+
+startServer();

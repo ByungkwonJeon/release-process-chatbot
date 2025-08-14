@@ -1470,9 +1470,9 @@ class ChatbotLogic {
     try {
       logger.info(`Getting stories from sprint ${sprintId}`);
       
-      const jiraOAuth2Service = require('../services/jiraOAuth2');
+      const mcpClient = require('../services/mcpClient');
       
-      const stories = await jiraOAuth2Service.getSprintStories(sprintId);
+      const stories = await mcpClient.getSprintStories(sprintId);
       
       const message = `📋 **Stories from Sprint ${sprintId}**\n\n` +
                      `**Total Stories:** ${stories.length}\n\n` +
@@ -1502,9 +1502,9 @@ class ChatbotLogic {
     try {
       logger.info(`Getting info for sprint ${sprintId}`);
       
-      const jiraOAuth2Service = require('../services/jiraOAuth2');
+      const mcpClient = require('../services/mcpClient');
       
-      const sprintInfo = await jiraOAuth2Service.getActiveSprints(null);
+      const sprintInfo = await mcpClient.getActiveSprints(null);
       const sprint = sprintInfo.find(s => s.id == sprintId);
       
       if (!sprint) {
@@ -1541,9 +1541,9 @@ class ChatbotLogic {
     try {
       logger.info(`Getting active sprints${boardId ? ` for board ${boardId}` : ''}`);
       
-      const jiraOAuth2Service = require('../services/jiraOAuth2');
+      const mcpClient = require('../services/mcpClient');
       
-      const sprints = await jiraOAuth2Service.getActiveSprints(boardId);
+      const sprints = await mcpClient.getActiveSprints(boardId);
       
       const message = `🏃 **Active Sprints**\n\n` +
                      sprints.map(sprint => 
@@ -1572,9 +1572,9 @@ class ChatbotLogic {
     try {
       logger.info(`Generating release notes for version ${version} from sprint ${sprintId}`);
       
-      const jiraOAuth2Service = require('../services/jiraOAuth2');
+      const mcpClient = require('../services/mcpClient');
       
-      const releaseNotes = await jiraOAuth2Service.generateReleaseNotes(sprintId, version);
+      const releaseNotes = await mcpClient.generateReleaseNotes(sprintId, version);
       
       const message = `📝 **Release Notes for Version ${version}**\n\n` +
                      `**Generated from Sprint:** ${sprintId}\n` +

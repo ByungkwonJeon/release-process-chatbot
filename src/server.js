@@ -12,45 +12,8 @@ const { initializeDatabase } = require('./models/database');
 const chatRoutes = require('./routes/chat');
 const releaseRoutes = require('./routes/releases');
 const { setupSocketHandlers } = require('./utils/socketHandlers');
-// Jira OAuth2 integration
-const jiraOAuth2Service = require('./services/jiraOAuth2');
-
-let mcpClient = {
-  connect: async () => {
-    logger.info('Jira OAuth2 service connected');
-    return true;
-  },
-  isConnected: () => true,
-  enhancedJira: async (action, params) => {
-    logger.info(`Jira OAuth2 service called with action: ${action}`);
-    
-    try {
-      switch (action) {
-        case 'getSprintStories':
-          return await jiraOAuth2Service.getSprintStories(params.sprintId);
-          
-        case 'getActiveSprints':
-          return await jiraOAuth2Service.getActiveSprints(params.boardId);
-          
-        case 'generateReleaseNotes':
-          return await jiraOAuth2Service.generateReleaseNotes(params.sprintId, params.version);
-          
-        case 'getSprintInfo':
-          return await jiraOAuth2Service.getSprintInfo(params.sprintId);
-          
-        case 'getProjects':
-          return await jiraOAuth2Service.getProjects();
-          
-        default:
-          logger.warn(`Unknown Jira action: ${action}`);
-          return { error: `Unknown action: ${action}` };
-      }
-    } catch (error) {
-      logger.error(`Jira OAuth2 service error for action ${action}:`, error.message);
-      throw error;
-    }
-  }
-};
+// MCP Client integration
+const mcpClient = require('./services/mcpClient');
 
 const app = express();
 const server = http.createServer(app);

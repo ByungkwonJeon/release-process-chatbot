@@ -1,395 +1,148 @@
+const { Client } = require('@modelcontextprotocol/sdk/client');
+const { StdioClientTransport } = require('@modelcontextprotocol/sdk/client/stdio');
+const { spawn } = require('child_process');
 const { logger } = require('../utils/logger');
-
-// Mock MCP Client for internal/personal use
-class MockMCPClient {
-  constructor() {
-    this.client = null;
-    this.connected = false;
-    this.tools = {};
-  }
-
-  async connect(serverUrl = 'ws://localhost:3002') {
-    logger.info(`Mock MCP Client: Would connect to ${serverUrl}`);
-    this.connected = true;
-    return true;
-  }
-
-  async disconnect() {
-    this.connected = false;
-    logger.info('Mock MCP Client: Disconnected');
-  }
-
-  async discoverTools() {
-    logger.info('Mock MCP Client: Discovering tools');
-    this.tools = {
-      'jira': { name: 'jira', description: 'Mock Jira tool' },
-      'bitbucket': { name: 'bitbucket', description: 'Mock Bitbucket tool' },
-      'terraform': { name: 'terraform', description: 'Mock Terraform tool' },
-      'aws': { name: 'aws', description: 'Mock AWS tool' },
-      'spinnaker': { name: 'spinnaker', description: 'Mock Spinnaker tool' }
-    };
-    return this.tools;
-  }
-
-  async callTool(toolName, action, params = {}) {
-    logger.info(`Mock MCP Client: Calling ${toolName} with action ${action}`);
-    return { success: true, message: `Mock response from ${toolName}` };
-  }
-
-  isConnected() {
-    return this.connected;
-  }
-
-  // Convenience methods
-  async bitbucket(action, params = {}) {
-    return await this.callTool('bitbucket', action, params);
-  }
-
-  async jira(action, params = {}) {
-    return await this.callTool('jira', action, params);
-  }
-
-  async terraform(action, params = {}) {
-    return await this.callTool('terraform', action, params);
-  }
-
-  async aws(action, params = {}) {
-    return await this.callTool('aws', action, params);
-  }
-
-  async spinnaker(action, params = {}) {
-    return await this.callTool('spinnaker', action, params);
-  }
-}
-
-const Client = MockMCPClient;
 
 class MCPClient {
   constructor() {
     this.client = null;
-    this.connected = false;
-    this.tools = {};
+    this.isConnected = false;
+    this.serverProcess = null;
   }
 
-  async connect(serverUrl = 'ws://localhost:3002') {
+  async connect() {
     try {
-      logger.info(`Connecting to MCP server at ${serverUrl}`);
+      if (this.isConnected) {
+        return true;
+      }
+
+      logger.info('Starting MCP server process...');
       
+      // Start the MCP server as a child process
+      this.serverProcess = spawn('node', ['src/mcp/server.js'], {
+        stdio: ['pipe', 'pipe', 'pipe']
+      });
+
+      // Create transport for the server process
+      const transport = new StdioClientTransport(
+        this.serverProcess.stdin,
+        this.serverProcess.stdout
+      );
+
+      // Create MCP client
       this.client = new Client({
-        serverUrl,
-        name: 'release-chatbot-client',
+        name: 'release-process-chatbot-client',
         version: '1.0.0'
       });
 
-      await this.client.connect();
-      this.connected = true;
+      // Connect to the server
+      await this.client.connect(transport);
       
-      // Discover available tools
-      await this.discoverTools();
+      this.isConnected = true;
+      logger.info('MCP client connected successfully');
       
-      logger.info('Successfully connected to MCP server');
       return true;
     } catch (error) {
-      logger.error('Failed to connect to MCP server:', error.message);
-      this.connected = false;
+      logger.error('Failed to connect MCP client:', error.message);
+      this.isConnected = false;
       throw error;
     }
   }
 
   async disconnect() {
-    if (this.client && this.connected) {
-      try {
-        await this.client.disconnect();
-        this.connected = false;
-        logger.info('Disconnected from MCP server');
-      } catch (error) {
-        logger.error('Error disconnecting from MCP server:', error.message);
-      }
-    }
-  }
-
-  async discoverTools() {
     try {
-      if (!this.connected) {
-        throw new Error('Not connected to MCP server');
+      if (this.client) {
+        await this.client.close();
+        this.client = null;
       }
-
-      const tools = await this.client.listTools();
-      this.tools = tools.reduce((acc, tool) => {
-        acc[tool.name] = tool;
-        return acc;
-      }, {});
-
-      logger.info(`Discovered ${Object.keys(this.tools).length} MCP tools: ${Object.keys(this.tools).join(', ')}`);
-      return this.tools;
-    } catch (error) {
-      logger.error('Failed to discover MCP tools:', error.message);
-      throw error;
-    }
-  }
-
-  async callTool(toolName, action, params = {}) {
-    try {
-      if (!this.connected) {
-        throw new Error('Not connected to MCP server');
-      }
-
-      if (!this.tools[toolName]) {
-        throw new Error(`Tool ${toolName} not found. Available tools: ${Object.keys(this.tools).join(', ')}`);
-      }
-
-      logger.info(`Calling MCP tool ${toolName} with action ${action}`);
       
-      const result = await this.client.callTool(toolName, {
-        action,
-        ...params
+      if (this.serverProcess) {
+        this.serverProcess.kill();
+        this.serverProcess = null;
+      }
+      
+      this.isConnected = false;
+      logger.info('MCP client disconnected');
+    } catch (error) {
+      logger.error('Error disconnecting MCP client:', error.message);
+    }
+  }
+
+  async callTool(name, args = {}) {
+    try {
+      if (!this.isConnected) {
+        await this.connect();
+      }
+
+      logger.info(`Calling MCP tool: ${name} with args:`, args);
+      
+      const result = await this.client.callTool({
+        name,
+        arguments: args
       });
 
-      logger.info(`MCP tool ${toolName} call completed successfully`);
+      logger.info(`MCP tool ${name} executed successfully`);
       return result;
     } catch (error) {
-      logger.error(`Failed to call MCP tool ${toolName}:`, error.message);
+      logger.error(`Failed to call MCP tool ${name}:`, error.message);
       throw error;
     }
   }
 
-  // Convenience methods for each tool
-  async bitbucket(action, params = {}) {
-    return await this.callTool('bitbucket', action, params);
+  // Jira-specific methods
+  async getSprintStories(sprintId) {
+    const result = await this.callTool('getSprintStories', { sprintId });
+    return JSON.parse(result.content[0].text);
   }
 
-  async jira(action, params = {}) {
-    return await this.callTool('jira', action, params);
-  }
-
-  async enhancedJira(action, params = {}) {
-    return await this.callTool('enhancedJira', action, params);
-  }
-
-  async terraform(action, params = {}) {
-    return await this.callTool('terraform', action, params);
-  }
-
-  async spinnaker(action, params = {}) {
-    return await this.callTool('spinnaker', action, params);
-  }
-
-  async aws(action, params = {}) {
-    return await this.callTool('aws', action, params);
-  }
-
-  async release(action, params = {}) {
-    return await this.callTool('release', action, params);
-  }
-
-  // High-level workflow methods
-  async createReleaseBranch(version, sourceBranch = 'main') {
-    return await this.bitbucket('createReleaseBranch', {
-      version,
-      sourceBranch
-    });
+  async getActiveSprints(boardId = null) {
+    const result = await this.callTool('getActiveSprints', { boardId });
+    return JSON.parse(result.content[0].text);
   }
 
   async generateReleaseNotes(sprintId, version) {
-    return await this.enhancedJira('generateReleaseNotes', {
-      sprintId,
-      version
-    });
+    const result = await this.callTool('generateReleaseNotes', { sprintId, version });
+    return JSON.parse(result.content[0].text);
   }
 
-  async buildInfrastructure(environment = 'staging') {
-    return await this.terraform('buildInfrastructure', {
-      environment
-    });
-  }
-
-  async deployApplication(applicationName, environment, version, artifacts = []) {
-    return await this.spinnaker('deployApplication', {
-      applicationName,
-      environment,
-      version,
-      artifacts
-    });
-  }
-
-  async verifyDeployment(environment, applications) {
-    return await this.aws('verifyDeployment', {
-      environment,
-      applications
-    });
-  }
-
-  async createRelease(version, environment, applications, sprintId = null) {
-    return await this.release('createRelease', {
-      version,
-      environment,
-      applications,
-      sprintId
-    });
-  }
-
-  async getReleaseStatus(releaseId) {
-    return await this.release('getReleaseStatus', {
-      releaseId
-    });
-  }
-
-  async updateStepStatus(releaseId, stepType, status, output = null, errorMessage = null) {
-    return await this.release('updateStepStatus', {
-      releaseId,
-      stepType,
-      status,
-      output,
-      errorMessage
-    });
-  }
-
-  async addReleaseLog(releaseId, level, message, stepId = null, source = null) {
-    return await this.release('addReleaseLog', {
-      releaseId,
-      level,
-      message,
-      stepId,
-      source
-    });
-  }
-
-  async getReleaseLogs(releaseId, stepId = null, level = null, limit = 100) {
-    return await this.release('getReleaseLogs', {
-      releaseId,
-      stepId,
-      level,
-      limit
-    });
-  }
-
-  async completeRelease(releaseId, status = 'completed') {
-    return await this.release('completeRelease', {
-      releaseId,
-      status
-    });
-  }
-
-  // ===== ENHANCED JIRA WORKFLOW METHODS =====
-
-  async getReleaseCandidates(projectKey, sprintId = null) {
-    return await this.enhancedJira('getReleaseCandidates', {
-      projectKey,
-      sprintId
-    });
-  }
-
-  async createReleaseVersion(projectKey, version, description = null, releaseDate = null) {
-    return await this.enhancedJira('createReleaseVersion', {
-      projectKey,
-      version,
-      description,
-      releaseDate
-    });
-  }
-
-  async searchIssues(jql, maxResults = 50) {
-    return await this.enhancedJira('searchIssues', {
-      jql,
-      maxResults
-    });
-  }
-
-  async getIssueDetails(issueKey, expand = 'changelog,comments') {
-    return await this.enhancedJira('getIssueDetails', {
-      issueKey,
-      expand
-    });
-  }
-
-  async getDevInfo(issueKey) {
-    return await this.enhancedJira('getDevInfo', {
-      issueKey
-    });
-  }
-
-  async createIssue(projectKey, summary, description = null, issueType = 'Task', assignee = null) {
-    return await this.enhancedJira('createIssue', {
-      projectKey,
-      summary,
-      description,
-      issueType,
-      assignee
-    });
-  }
-
-  async transitionIssue(issueKey, transitionId, comment = null) {
-    return await this.enhancedJira('transitionIssue', {
-      issueKey,
-      transitionId,
-      comment
-    });
+  async getSprintInfo(sprintId) {
+    const result = await this.callTool('getSprintInfo', { sprintId });
+    return JSON.parse(result.content[0].text);
   }
 
   async getProjects() {
-    return await this.enhancedJira('getProjects');
+    const result = await this.callTool('getProjects', {});
+    return JSON.parse(result.content[0].text);
   }
 
-  async getBoards(type = 'scrum') {
-    return await this.enhancedJira('getBoards', {
-      type
-    });
-  }
-
-  // Health check methods
-  async validateAllCredentials() {
-    const results = {};
-    
-    try {
-      results.bitbucket = await this.bitbucket('validateCredentials');
-    } catch (error) {
-      results.bitbucket = { success: false, error: error.message };
+  // Enhanced Jira method for backward compatibility
+  async enhancedJira(action, params = {}) {
+    switch (action) {
+      case 'getSprintStories':
+        return await this.getSprintStories(params.sprintId);
+        
+      case 'getActiveSprints':
+        return await this.getActiveSprints(params.boardId);
+        
+      case 'generateReleaseNotes':
+        return await this.generateReleaseNotes(params.sprintId, params.version);
+        
+      case 'getSprintInfo':
+        return await this.getSprintInfo(params.sprintId);
+        
+      case 'getProjects':
+        return await this.getProjects();
+        
+      default:
+        throw new Error(`Unknown Jira action: ${action}`);
     }
-
-    try {
-      results.jira = await this.jira('validateCredentials');
-    } catch (error) {
-      results.jira = { success: false, error: error.message };
-    }
-
-    try {
-      results.terraform = await this.terraform('testConnection');
-    } catch (error) {
-      results.terraform = { success: false, error: error.message };
-    }
-
-    try {
-      results.spinnaker = await this.spinnaker('validateCredentials');
-    } catch (error) {
-      results.spinnaker = { success: false, error: error.message };
-    }
-
-    try {
-      results.aws = await this.aws('validateCredentials');
-    } catch (error) {
-      results.aws = { success: false, error: error.message };
-    }
-
-    return results;
-  }
-
-  isConnected() {
-    return this.connected;
-  }
-
-  getAvailableTools() {
-    return Object.keys(this.tools);
-  }
-
-  getToolInfo(toolName) {
-    return this.tools[toolName];
   }
 }
 
 // Create and export singleton instance
 const mcpClient = new MCPClient();
 
-// Handle process termination
+// Handle graceful shutdown
 process.on('SIGINT', async () => {
   logger.info('Shutting down MCP client...');
   await mcpClient.disconnect();
