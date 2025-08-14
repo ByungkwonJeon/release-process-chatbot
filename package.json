@@ -4,7 +4,7 @@
   "description": "Chatbot for managing release process with Bitbucket, Jira, Terraform, and Spinnaker integration using Model Context Protocol",
   "main": "src/server.js",
   "scripts": {
-    "start": "node src/server.js",
+    "start": "npm run build && node src/server.js",
     "dev": "nodemon src/server.js",
     "dev:full": "concurrently \"npm run dev\" \"npm run client\"",
     "client": "cd client && npm start",
