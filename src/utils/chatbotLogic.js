@@ -40,6 +40,11 @@ class ChatbotLogic {
       createJiraStory: /create\s+(?:a\s+)?(?:new\s+)?jira\s+(?:story|issue)\s+(?:in\s+)?project\s+([A-Z]+)\s+(?:with\s+)?(?:title\s+)?(.+?)(?:\s+with\s+(?:description\s+)?(.+))?(?:\s+assigned\s+to\s+(.+))?(?:\s+with\s+(?:priority\s+)?(high|medium|low))?(?:\s+in\s+(?:epic\s+)?(.+))?(?:\s+for\s+(?:sprint\s+)?(.+))?(?:\s+with\s+(?:labels?\s+)?(.+))?/i,
       createDetailedStory: /create\s+(?:a\s+)?(?:new\s+)?(?:detailed\s+)?story\s+(?:in\s+)?project\s+([A-Z]+)\s+(?:with\s+)?(?:title\s+)?(.+?)(?:\s+description\s+(.+?))?(?:\s+assignee\s+(.+?))?(?:\s+priority\s+(high|medium|low))?(?:\s+epic\s+(.+?))?(?:\s+sprint\s+(.+?))?(?:\s+labels?\s+(.+?))?(?:\s+components?\s+(.+?))?(?:\s+fixversion\s+(.+?))?/i,
       generateStoryContent: /generate\s+(?:story\s+)?content\s+(?:for\s+)?(?:title\s+)?(.+?)(?:\s+in\s+project\s+([A-Z]+))?(?:\s+with\s+(?:type\s+)?(story|bug|task))?(?:\s+epic\s+(.+?))?(?:\s+sprint\s+(.+?))?(?:\s+assignee\s+(.+?))?(?:\s+priority\s+(high|medium|low))?/i,
+      // Sprint and story management commands
+      getSprintStories: /(?:get|fetch|show)\s+(?:all\s+)?(?:stories?|issues?)\s+(?:from\s+)?(?:sprint\s+)?(\d+)/i,
+      getSprintInfo: /(?:get|show)\s+(?:info\s+)?(?:for\s+)?(?:sprint\s+)?(\d+)/i,
+      getActiveSprints: /(?:get|show|list)\s+(?:all\s+)?(?:active\s+)?sprints?\s+(?:for\s+)?(?:board\s+)?(\d+)?/i,
+      generateReleaseNotes: /(?:generate|create)\s+(?:release\s+)?notes?\s+(?:for\s+)?(?:version\s+)?([\d.]+)\s+(?:from\s+)?(?:sprint\s+)?(\d+)/i,
       // Multi-project commands
       startMultiProjectRelease: /start\s+(?:a\s+)?(?:new\s+)?release\s+(?:for\s+)?version\s+([\d.]+)\s+(?:with\s+)?projects?\s+(.+)/i,
       listProjects: /list\s+(?:my\s+)?projects?/i,
@@ -228,6 +233,27 @@ class ChatbotLogic {
     const generateStoryContentMatch = message.match(this.commands.generateStoryContent);
     if (generateStoryContentMatch) {
       return await this.handleGenerateStoryContent(generateStoryContentMatch, conversation);
+    }
+
+    // Check for sprint and story management commands
+    const getSprintStoriesMatch = message.match(this.commands.getSprintStories);
+    if (getSprintStoriesMatch) {
+      return await this.handleGetSprintStories(getSprintStoriesMatch[1], conversation);
+    }
+
+    const getSprintInfoMatch = message.match(this.commands.getSprintInfo);
+    if (getSprintInfoMatch) {
+      return await this.handleGetSprintInfo(getSprintInfoMatch[1], conversation);
+    }
+
+    const getActiveSprintsMatch = message.match(this.commands.getActiveSprints);
+    if (getActiveSprintsMatch) {
+      return await this.handleGetActiveSprints(getActiveSprintsMatch[1], conversation);
+    }
+
+    const generateReleaseNotesMatch = message.match(this.commands.generateReleaseNotes);
+    if (generateReleaseNotesMatch) {
+      return await this.handleGenerateReleaseNotes(generateReleaseNotesMatch[1], generateReleaseNotesMatch[2], conversation);
     }
 
     // Check for multi-project commands
@@ -553,6 +579,12 @@ class ChatbotLogic {
                `• "Create jira story in project PROJ with title User authentication system" - Create detailed stories\n` +
                `• "Create detailed story in project PROJ with title Payment integration description Secure payment gateway assignee john.doe priority high epic Payment System sprint Sprint 123 labels payment,integration" - Create comprehensive stories\n` +
                `• "Generate story content for title User authentication system in project PROJ with type story epic User Management priority high" - Generate AI-powered descriptions and acceptance criteria with Copilot integration\n\n` +
+               `📋 **Sprint & Story Management:**\n` +
+               `• "Get stories from sprint 123" - Fetch all stories from a specific sprint\n` +
+               `• "Get info for sprint 123" - Get detailed sprint information\n` +
+               `• "Get active sprints" - List all active sprints\n` +
+               `• "Get active sprints for board 456" - List sprints for specific board\n` +
+               `• "Generate release notes for version 2.1.0 from sprint 123" - Generate release notes from sprint\n\n` +
               `💡 **Need help?** Try asking for specific commands or check the documentation.`
     };
   }
@@ -1100,7 +1132,11 @@ class ChatbotLogic {
                `• "Apply terraform project terraform-security for prod"\n` +
                `• "Deploy multiple terraform projects terraform-infra, terraform-monitoring for dev"\n` +
                `• "What's the status?"\n` +
-               `• "Find release candidates for project PROJ"`
+               `• "Find release candidates for project PROJ"\n` +
+               `• "Get stories from sprint 123" - Fetch all stories from a specific sprint\n` +
+               `• "Get active sprints" - List all active sprints\n` +
+               `• "Generate release notes for version 2.1.0 from sprint 123" - Generate release notes from sprint\n` +
+               `• "Create jira story in project PROJ with title User authentication system" - Create detailed stories`
     };
   }
 
@@ -1426,6 +1462,141 @@ class ChatbotLogic {
       return {
         type: 'error',
         message: `❌ Failed to create detailed story: ${error.message}`
+      };
+    }
+  }
+
+  async handleGetSprintStories(sprintId, conversation) {
+    try {
+      logger.info(`Getting stories from sprint ${sprintId}`);
+      
+      const mcpClient = require('../services/mcpClient');
+      
+      const stories = await mcpClient.enhancedJira('getSprintStories', { sprintId });
+      
+      const message = `📋 **Stories from Sprint ${sprintId}**\n\n` +
+                     `**Total Stories:** ${stories.length}\n\n` +
+                     stories.map(story => 
+                       `• **${story.key}** - ${story.summary}\n` +
+                       `  Status: ${story.status}, Priority: ${story.priority || 'None'}\n` +
+                       `  Assignee: ${story.assignee || 'Unassigned'}\n` +
+                       `  Type: ${story.issueType}\n`
+                     ).join('\n');
+      
+      return {
+        type: 'sprint_stories',
+        message,
+        sprintId,
+        stories
+      };
+    } catch (error) {
+      logger.error('Failed to get sprint stories:', error.message);
+      return {
+        type: 'error',
+        message: `❌ Failed to get stories from sprint ${sprintId}: ${error.message}`
+      };
+    }
+  }
+
+  async handleGetSprintInfo(sprintId, conversation) {
+    try {
+      logger.info(`Getting info for sprint ${sprintId}`);
+      
+      const mcpClient = require('../services/mcpClient');
+      
+      const sprintInfo = await mcpClient.enhancedJira('getActiveSprints', { boardId: null });
+      const sprint = sprintInfo.find(s => s.id == sprintId);
+      
+      if (!sprint) {
+        return {
+          type: 'error',
+          message: `❌ Sprint ${sprintId} not found`
+        };
+      }
+      
+      const message = `📅 **Sprint Information**\n\n` +
+                     `**Sprint ID:** ${sprint.id}\n` +
+                     `**Name:** ${sprint.name}\n` +
+                     `**State:** ${sprint.state}\n` +
+                     `**Start Date:** ${sprint.startDate || 'Not set'}\n` +
+                     `**End Date:** ${sprint.endDate || 'Not set'}\n` +
+                     `**Goal:** ${sprint.goal || 'No goal set'}`;
+      
+      return {
+        type: 'sprint_info',
+        message,
+        sprintId,
+        sprint
+      };
+    } catch (error) {
+      logger.error('Failed to get sprint info:', error.message);
+      return {
+        type: 'error',
+        message: `❌ Failed to get sprint info: ${error.message}`
+      };
+    }
+  }
+
+  async handleGetActiveSprints(boardId, conversation) {
+    try {
+      logger.info(`Getting active sprints${boardId ? ` for board ${boardId}` : ''}`);
+      
+      const mcpClient = require('../services/mcpClient');
+      
+      const sprints = await mcpClient.enhancedJira('getActiveSprints', { boardId });
+      
+      const message = `🏃 **Active Sprints**\n\n` +
+                     sprints.map(sprint => 
+                       `• **${sprint.name}** (ID: ${sprint.id})\n` +
+                       `  State: ${sprint.state}\n` +
+                       `  Start: ${sprint.startDate || 'Not set'}\n` +
+                       `  End: ${sprint.endDate || 'Not set'}\n`
+                     ).join('\n');
+      
+      return {
+        type: 'active_sprints',
+        message,
+        boardId,
+        sprints
+      };
+    } catch (error) {
+      logger.error('Failed to get active sprints:', error.message);
+      return {
+        type: 'error',
+        message: `❌ Failed to get active sprints: ${error.message}`
+      };
+    }
+  }
+
+  async handleGenerateReleaseNotes(version, sprintId, conversation) {
+    try {
+      logger.info(`Generating release notes for version ${version} from sprint ${sprintId}`);
+      
+      const mcpClient = require('../services/mcpClient');
+      
+      const releaseNotes = await mcpClient.enhancedJira('generateReleaseNotes', { 
+        version, 
+        sprintId,
+        includeCustomFields: true 
+      });
+      
+      const message = `📝 **Release Notes for Version ${version}**\n\n` +
+                     `**Generated from Sprint:** ${sprintId}\n` +
+                     `**Release Date:** ${new Date().toLocaleDateString()}\n\n` +
+                     releaseNotes.content;
+      
+      return {
+        type: 'release_notes_generated',
+        message,
+        version,
+        sprintId,
+        releaseNotes
+      };
+    } catch (error) {
+      logger.error('Failed to generate release notes:', error.message);
+      return {
+        type: 'error',
+        message: `❌ Failed to generate release notes: ${error.message}`
       };
     }
   }
