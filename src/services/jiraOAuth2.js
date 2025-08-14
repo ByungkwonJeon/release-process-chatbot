@@ -11,6 +11,7 @@ class JiraOAuth2Service {
     this.adfsUrl = process.env.JIRA_ADFS_URL || 'https://idaq2.jpmorganchase.com/adfs/oauth2/token';
     this.clientId = process.env.JIRA_CLIENT_ID || 'PC-111661-SID-277611-PROD';
     this.resource = process.env.JIRA_RESOURCE || 'JPMC:URI:RS-25188-87400-Jira0authAPI-PROD';
+    this.sid = process.env.SID || 'F747621';
     
     // Token cache
     this.token = {
@@ -48,7 +49,7 @@ class JiraOAuth2Service {
         'grant_type': 'password',
         'client_id': this.clientId,
         'resource': this.resource,
-        'username': `NAEAST\\${getUserName()}`,
+        'username': `NAEAST\\${this.sid}`,
         'password': password
       });
 
