@@ -18,7 +18,8 @@
     "test:database": "node test-file-database.js",
     "validate": "npm run db:init",
     "mcp:start": "node src/mcp/server.js",
-    "mcp:dev": "nodemon src/mcp/server.js"
+    "mcp:dev": "nodemon src/mcp/server.js",
+    "setup:jira": "node setup-jira.js"
   },
   "dependencies": {
     "aws-sdk": "^2.1450.0",

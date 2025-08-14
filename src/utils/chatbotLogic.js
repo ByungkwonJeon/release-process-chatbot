@@ -1480,7 +1480,7 @@ class ChatbotLogic {
                        `• **${story.key}** - ${story.summary}\n` +
                        `  Status: ${story.status}, Priority: ${story.priority || 'None'}\n` +
                        `  Assignee: ${story.assignee || 'Unassigned'}\n` +
-                       `  Type: ${story.issueType}\n`
+                       `  Type: ${story.type}\n`
                      ).join('\n');
       
       return {
@@ -1576,14 +1576,13 @@ class ChatbotLogic {
       
       const releaseNotes = await mcpClient.enhancedJira('generateReleaseNotes', { 
         version, 
-        sprintId,
-        includeCustomFields: true 
+        sprintId
       });
       
       const message = `📝 **Release Notes for Version ${version}**\n\n` +
                      `**Generated from Sprint:** ${sprintId}\n` +
                      `**Release Date:** ${new Date().toLocaleDateString()}\n\n` +
-                     releaseNotes.content;
+                     releaseNotes.releaseNotes;
       
       return {
         type: 'release_notes_generated',
