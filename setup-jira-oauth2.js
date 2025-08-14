@@ -81,15 +81,10 @@ async function setupJiraOAuth2() {
     const jiraOAuth2Service = require('./src/services/jiraOAuth2');
     
     try {
-      const result = await jiraOAuth2Service.validateCredentials();
-      
-      if (result.success) {
-        console.log('✅ Jira OAuth2 connection successful!');
-        console.log(`📋 Message: ${result.message}`);
-      } else {
-        console.log('❌ Jira OAuth2 connection failed.');
-        console.log(`📋 Error: ${result.error || 'Unknown error'}`);
-      }
+      // Test by getting projects
+      const projectsResult = await jiraOAuth2Service.getProjects();
+      console.log('✅ Jira OAuth2 connection successful!');
+      console.log(`📋 Found ${projectsResult.projects.length} projects`);
     } catch (error) {
       console.log('❌ Jira OAuth2 connection failed:', error.message);
       console.log('\n💡 Troubleshooting tips:');

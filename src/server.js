@@ -38,9 +38,6 @@ let mcpClient = {
         case 'getSprintInfo':
           return await jiraOAuth2Service.getSprintInfo(params.sprintId);
           
-        case 'validateCredentials':
-          return await jiraOAuth2Service.validateCredentials();
-          
         case 'getProjects':
           return await jiraOAuth2Service.getProjects();
           

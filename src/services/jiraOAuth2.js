@@ -10,7 +10,7 @@ class JiraOAuth2Service {
     this.email = process.env.JIRA_EMAIL;
     this.adfsUrl = process.env.JIRA_ADFS_URL || 'https://idaq2.jpmorganchase.com/adfs/oauth2/token';
     this.clientId = process.env.JIRA_CLIENT_ID || 'PC-111661-SID-277611-PROD';
-    this.resource = process.env.JIRA_RESOURCE || 'JPMC:URI:RS-25188-87400-Jira0authAPI-PROD';
+    this.resource = process.env.JIRA_RESOURCE || 'JPMC:URI:RS-25188-87400-JiraOauthAPI-PROD';
     this.sid = process.env.SID || 'F747621';
     
     // Token cache
@@ -297,25 +297,6 @@ class JiraOAuth2Service {
     }
   }
 
-  async validateCredentials() {
-    try {
-      // Update authentication before making request
-      await this.updateClientAuth();
-      
-      await this.client.get('/rest/api/3/myself');
-      return {
-        success: true,
-        message: 'Jira OAuth2 credentials are valid'
-      };
-    } catch (error) {
-      logger.error('Jira OAuth2 credentials validation failed:', error.message);
-      return {
-        success: false,
-        message: 'Jira OAuth2 credentials validation failed',
-        error: error.message
-      };
-    }
-  }
 }
 
 module.exports = new JiraOAuth2Service();

@@ -34,25 +34,16 @@ async function testJiraOAuth2() {
   // Test OAuth2 connection
   try {
     console.log('🧪 Testing Jira OAuth2 connection...');
-    const result = await jiraOAuth2Service.validateCredentials();
     
-    if (result.success) {
+    // Test a simple API call directly
+    console.log('🧪 Testing API call (getProjects)...');
+    try {
+      const projectsResult = await jiraOAuth2Service.getProjects();
       console.log('✅ Jira OAuth2 authentication successful!');
-      console.log(`📋 Message: ${result.message}`);
-      
-      // Test a simple API call
-      console.log('\n🧪 Testing API call (getProjects)...');
-      try {
-        const projectsResult = await jiraOAuth2Service.getProjects();
-        console.log('✅ API call successful!');
-        console.log(`📋 Found ${projectsResult.projects.length} projects`);
-      } catch (apiError) {
-        console.log('❌ API call failed:', apiError.message);
-      }
-      
-    } else {
+      console.log(`📋 Found ${projectsResult.projects.length} projects`);
+    } catch (apiError) {
       console.log('❌ Jira OAuth2 authentication failed.');
-      console.log(`📋 Error: ${result.error || 'Unknown error'}`);
+      console.log(`📋 Error: ${apiError.message}`);
     }
   } catch (error) {
     console.log('❌ Jira OAuth2 authentication error:', error.message);
