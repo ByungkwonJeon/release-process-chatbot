@@ -19,7 +19,10 @@
     "validate": "npm run db:init",
     "mcp:start": "node src/mcp/server.js",
     "mcp:dev": "nodemon src/mcp/server.js",
-    "setup:jira": "node setup-jira.js"
+    "setup:jira": "node setup-jira.js",
+    "setup:jira:oauth2": "node setup-jira-oauth2.js",
+    "test:jira": "node test-jira-auth.js",
+    "test:jira:oauth2": "node test-jira-oauth2.js"
   },
   "dependencies": {
     "aws-sdk": "^2.1450.0",

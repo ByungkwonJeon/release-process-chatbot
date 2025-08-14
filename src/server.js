@@ -12,41 +12,44 @@ const { initializeDatabase } = require('./models/database');
 const chatRoutes = require('./routes/chat');
 const releaseRoutes = require('./routes/releases');
 const { setupSocketHandlers } = require('./utils/socketHandlers');
-// Real Jira integration
-const jiraService = require('./services/jira');
+// Jira OAuth2 integration
+const jiraOAuth2Service = require('./services/jiraOAuth2');
 
 let mcpClient = {
   connect: async () => {
-    logger.info('Real Jira service connected');
+    logger.info('Jira OAuth2 service connected');
     return true;
   },
   isConnected: () => true,
   enhancedJira: async (action, params) => {
-    logger.info(`Real Jira service called with action: ${action}`);
+    logger.info(`Jira OAuth2 service called with action: ${action}`);
     
     try {
       switch (action) {
         case 'getSprintStories':
-          return await jiraService.getSprintStories(params.sprintId);
+          return await jiraOAuth2Service.getSprintStories(params.sprintId);
           
         case 'getActiveSprints':
-          return await jiraService.getActiveSprints(params.boardId);
+          return await jiraOAuth2Service.getActiveSprints(params.boardId);
           
         case 'generateReleaseNotes':
-          return await jiraService.generateReleaseNotes(params.sprintId, params.version);
+          return await jiraOAuth2Service.generateReleaseNotes(params.sprintId, params.version);
           
         case 'getSprintInfo':
-          return await jiraService.getSprintInfo(params.sprintId);
+          return await jiraOAuth2Service.getSprintInfo(params.sprintId);
           
         case 'validateCredentials':
-          return await jiraService.validateCredentials();
+          return await jiraOAuth2Service.validateCredentials();
+          
+        case 'getProjects':
+          return await jiraOAuth2Service.getProjects();
           
         default:
           logger.warn(`Unknown Jira action: ${action}`);
           return { error: `Unknown action: ${action}` };
       }
     } catch (error) {
-      logger.error(`Jira service error for action ${action}:`, error.message);
+      logger.error(`Jira OAuth2 service error for action ${action}:`, error.message);
       throw error;
     }
   }

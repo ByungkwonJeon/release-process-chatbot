@@ -1,30 +1,94 @@
-const { Tool } = require('@modelcontextprotocol/sdk/server/tools');
+const { Tool } = require('@modelcontextprotocol/sdk/dist/cjs/server/tools');
 const axios = require('axios');
+const qs = require('qs');
+const fs = require('fs');
 const { logger } = require('../../utils/logger');
+const { getUserName, getHomeDir } = require('../../utils/userUtils');
 
 class EnhancedJiraTool extends Tool {
   constructor() {
     super({
       name: 'enhancedJira',
-      description: 'Enhanced Jira integration with release workflow features and advanced capabilities',
+      description: 'Enhanced Jira integration with release workflow features and advanced capabilities using OAuth2 authentication',
       version: '2.0.0'
     });
 
     this.host = process.env.JIRA_HOST;
     this.email = process.env.JIRA_EMAIL;
-    this.apiToken = process.env.JIRA_API_TOKEN;
+    this.adfsUrl = process.env.JIRA_ADFS_URL || 'https://idaq2.jpmorganchase.com/adfs/oauth2/token';
+    this.clientId = process.env.JIRA_CLIENT_ID || 'PC-111661-SID-277611-PROD';
+    this.resource = process.env.JIRA_RESOURCE || 'JPMC:URI:RS-25188-87400-Jira0authAPI-PROD';
+    
+    // Token cache
+    this.token = {
+      token: null,
+      time: null
+    };
     
     this.client = axios.create({
       baseURL: this.host,
-      auth: {
-        username: this.email,
-        password: this.apiToken
-      },
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json'
       }
     });
+  }
+
+  /**
+   * Get OAuth2 access token for Jira API
+   * @returns {Promise<string>} The access token
+   */
+  async getAccessToken() {
+    const time = new Date();
+    
+    // Check if we have a valid cached token
+    if (this.token.token != null && this.token.time.getTime() > time.getTime()) {
+      return this.token.token;
+    }
+
+    try {
+      // Read password from .sid file in home directory
+      const password = fs.readFileSync(`${getHomeDir()}/.sid`).toString().trim();
+      
+      // Construct OAuth2 request data
+      const data = qs.stringify({
+        'grant_type': 'password',
+        'client_id': this.clientId,
+        'resource': this.resource,
+        'username': `NAEAST\\${getUserName()}`,
+        'password': password
+      });
+
+      // Make OAuth2 token request
+      const response = await axios.post(this.adfsUrl, data, {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
+      });
+
+      // Cache the token and expiry time
+      this.token.token = response.data.access_token;
+      this.token.time = new Date(time.getTime() + (response.data.expires_in * 1000));
+      
+      logger.info('Successfully obtained new Jira OAuth2 access token');
+      return response.data.access_token;
+    } catch (error) {
+      logger.error('Failed to obtain Jira OAuth2 access token:', error.message);
+      throw new Error(`Failed to obtain Jira access token: ${error.message}`);
+    }
+  }
+
+  /**
+   * Update client headers with current access token
+   */
+  async updateClientAuth() {
+    try {
+      const accessToken = await this.getAccessToken();
+      this.client.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
+    } catch (error) {
+      logger.error('Failed to update client authentication:', error.message);
+      throw error;
+    }
   }
 
   // ===== RELEASE WORKFLOW FEATURES (Our Custom Implementation) =====
@@ -38,6 +102,9 @@ class EnhancedJiraTool extends Tool {
       }
 
       logger.info(`Fetching stories for sprint: ${sprintId}`);
+      
+      // Update authentication before making request
+      await this.updateClientAuth();
       
       const jql = `sprint = ${sprintId} ORDER BY priority DESC, created ASC`;
       const response = await this.client.post('/rest/api/3/search', {
@@ -106,6 +173,9 @@ class EnhancedJiraTool extends Tool {
       }
 
       logger.info(`Generating release notes for version ${version} from sprint ${sprintId}`);
+      
+      // Update authentication before making request
+      await this.updateClientAuth();
       
       const storiesResult = await this.getSprintStories({ sprintId });
       const stories = storiesResult.stories;
@@ -211,6 +281,9 @@ class EnhancedJiraTool extends Tool {
         throw new Error('Board ID is required');
       }
 
+      // Update authentication before making request
+      await this.updateClientAuth();
+
       const response = await this.client.get(`/rest/agile/1.0/board/${boardId}/sprint`, {
         params: {
           state: 'active'
@@ -243,6 +316,9 @@ class EnhancedJiraTool extends Tool {
       }
 
       logger.info(`Searching issues with JQL: ${jql}`);
+      
+      // Update authentication before making request
+      await this.updateClientAuth();
       
       const response = await this.client.post('/rest/api/3/search', {
         jql,
@@ -285,6 +361,9 @@ class EnhancedJiraTool extends Tool {
 
       logger.info(`Getting details for issue: ${issueKey}`);
       
+      // Update authentication before making request
+      await this.updateClientAuth();
+      
       const response = await this.client.get(`/rest/api/3/issue/${issueKey}`, {
         params: { expand }
       });
@@ -326,6 +405,9 @@ class EnhancedJiraTool extends Tool {
     try {
       logger.info('Fetching Jira projects');
       
+      // Update authentication before making request
+      await this.updateClientAuth();
+      
       const response = await this.client.get('/rest/api/3/project');
       const projects = response.data || [];
       
@@ -354,6 +436,9 @@ class EnhancedJiraTool extends Tool {
       const { type = 'scrum' } = args;
       
       logger.info(`Fetching ${type} boards`);
+      
+      // Update authentication before making request
+      await this.updateClientAuth();
       
       const response = await this.client.get('/rest/agile/1.0/board', {
         params: { type }
@@ -387,6 +472,9 @@ class EnhancedJiraTool extends Tool {
       }
 
       logger.info(`Creating issue in project ${projectKey}: ${summary}`);
+      
+      // Update authentication before making request
+      await this.updateClientAuth();
       
       const issueData = {
         fields: {
@@ -441,6 +529,9 @@ class EnhancedJiraTool extends Tool {
       }
 
       logger.info(`Creating detailed issue in project ${projectKey}: ${summary}`);
+      
+      // Update authentication before making request
+      await this.updateClientAuth();
       
       const issueData = {
         fields: {
@@ -517,6 +608,9 @@ class EnhancedJiraTool extends Tool {
 
       logger.info(`Updating issue ${issueKey}`);
       
+      // Update authentication before making request
+      await this.updateClientAuth();
+      
       const response = await this.client.put(`/rest/api/3/issue/${issueKey}`, {
         fields: fields
       });
@@ -541,6 +635,9 @@ class EnhancedJiraTool extends Tool {
       }
 
       logger.info(`Transitioning issue ${issueKey} to transition ${transitionId}`);
+      
+      // Update authentication before making request
+      await this.updateClientAuth();
       
       const transitionData = {
         transition: { id: transitionId }
@@ -775,6 +872,9 @@ This ${issueType.toLowerCase()} implements ${title} to enhance the system's func
 
       logger.info(`Getting development info for issue: ${issueKey}`);
       
+      // Update authentication before making request
+      await this.updateClientAuth();
+      
       // Get commits and pull requests related to the issue
       const response = await this.client.get(`/rest/dev-status/1.0/pull-request/${issueKey}`);
       
@@ -806,16 +906,19 @@ This ${issueType.toLowerCase()} implements ${title} to enhance the system's func
 
   async validateCredentials() {
     try {
+      // Update authentication before making request
+      await this.updateClientAuth();
+      
       await this.client.get('/rest/api/3/myself');
       return {
         success: true,
-        message: 'Enhanced Jira credentials are valid'
+        message: 'Enhanced Jira OAuth2 credentials are valid'
       };
     } catch (error) {
-      logger.error('Enhanced Jira credentials validation failed:', error.message);
+      logger.error('Enhanced Jira OAuth2 credentials validation failed:', error.message);
       return {
         success: false,
-        message: 'Enhanced Jira credentials validation failed',
+        message: 'Enhanced Jira OAuth2 credentials validation failed',
         error: error.message
       };
     }
@@ -832,6 +935,9 @@ This ${issueType.toLowerCase()} implements ${title} to enhance the system's func
       }
 
       logger.info(`Finding release candidates for project ${projectKey}`);
+      
+      // Update authentication before making request
+      await this.updateClientAuth();
       
       // Get issues ready for release
       const jql = sprintId 
@@ -873,6 +979,9 @@ This ${issueType.toLowerCase()} implements ${title} to enhance the system's func
       }
 
       logger.info(`Creating release version ${version} for project ${projectKey}`);
+      
+      // Update authentication before making request
+      await this.updateClientAuth();
       
       const versionData = {
         name: version,
