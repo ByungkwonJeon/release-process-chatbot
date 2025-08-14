@@ -12,13 +12,35 @@ const { initializeDatabase } = require('./models/database');
 const chatRoutes = require('./routes/chat');
 const releaseRoutes = require('./routes/releases');
 const { setupSocketHandlers } = require('./utils/socketHandlers');
-// MCP client temporarily disabled due to import issues
+// MCP client temporarily disabled due to SDK compatibility issues
 let mcpClient = {
   connect: async () => {
     logger.info('MCP client mock - connect called');
     return true;
   },
-  isConnected: () => false
+  isConnected: () => false,
+  enhancedJira: async (action, params) => {
+    logger.info(`MCP mock - enhancedJira called with action: ${action}`);
+    // Return mock data for testing
+    if (action === 'getSprintStories') {
+      return [
+        { key: 'PROJ-123', summary: 'Sample story 1', status: 'Done', priority: 'High', assignee: 'John Doe', issueType: 'Story' },
+        { key: 'PROJ-124', summary: 'Sample story 2', status: 'In Progress', priority: 'Medium', assignee: 'Jane Smith', issueType: 'Bug' }
+      ];
+    }
+    if (action === 'getActiveSprints') {
+      return [
+        { id: '123', name: 'Sprint 1', state: 'active', startDate: '2025-08-01', endDate: '2025-08-15' },
+        { id: '124', name: 'Sprint 2', state: 'active', startDate: '2025-08-16', endDate: '2025-08-30' }
+      ];
+    }
+    if (action === 'generateReleaseNotes') {
+      return {
+        content: '## Release Notes for Version 2.1.0\n\n### Features\n- Sample feature 1\n- Sample feature 2\n\n### Bug Fixes\n- Sample bug fix 1\n\n### Improvements\n- Sample improvement 1'
+      };
+    }
+    return { message: 'MCP mock response' };
+  }
 };
 
 const app = express();
